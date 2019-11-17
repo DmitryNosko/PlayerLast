@@ -29,6 +29,11 @@
 		78E43D0C236C2546008C5056 /* RecordViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E43D0B236C2546008C5056 /* RecordViewController.swift */; };
 		78E43D0F236C5DCD008C5056 /* UIButtonExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E43D0E236C5DCD008C5056 /* UIButtonExtension.swift */; };
 		CE1A2070237445E700FCBAB8 /* CoreDataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE1A206F237445E700FCBAB8 /* CoreDataController.swift */; };
+		CE883A232381A9730081F156 /* NSFetchRequestExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE883A222381A9730081F156 /* NSFetchRequestExtension.swift */; };
+		CE883A252381B6EF0081F156 /* DownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE883A242381B6EF0081F156 /* DownloadManager.swift */; };
+		CE883A2B2381C0A20081F156 /* NSDateExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE883A2A2381C0A20081F156 /* NSDateExtension.swift */; };
+		CE883A2D2381D0910081F156 /* CMTimeExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE883A2C2381D0910081F156 /* CMTimeExtension.swift */; };
+		CE883A302381E5490081F156 /* AssetsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE883A2F2381E5490081F156 /* AssetsService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -56,6 +61,11 @@
 		78E43D0B236C2546008C5056 /* RecordViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordViewController.swift; sourceTree = "<group>"; };
 		78E43D0E236C5DCD008C5056 /* UIButtonExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIButtonExtension.swift; sourceTree = "<group>"; };
 		CE1A206F237445E700FCBAB8 /* CoreDataController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataController.swift; sourceTree = "<group>"; };
+		CE883A222381A9730081F156 /* NSFetchRequestExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSFetchRequestExtension.swift; sourceTree = "<group>"; };
+		CE883A242381B6EF0081F156 /* DownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadManager.swift; sourceTree = "<group>"; };
+		CE883A2A2381C0A20081F156 /* NSDateExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSDateExtension.swift; sourceTree = "<group>"; };
+		CE883A2C2381D0910081F156 /* CMTimeExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CMTimeExtension.swift; sourceTree = "<group>"; };
+		CE883A2F2381E5490081F156 /* AssetsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetsService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -128,6 +138,7 @@
 		783C4EB123606658003CBB1A /* AVPlayer */ = {
 			isa = PBXGroup;
 			children = (
+				CE883A212381A9460081F156 /* Extensions */,
 				7800F16E2380399B0045847C /* Model */,
 				CE1A206E237444D900FCBAB8 /* CoreData */,
 				783C4ED52361D036003CBB1A /* Utils */,
@@ -186,8 +197,8 @@
 			isa = PBXGroup;
 			children = (
 				783C4ED62361D05C003CBB1A /* CustomImageView.swift */,
-				78E43D0E236C5DCD008C5056 /* UIButtonExtension.swift */,
-				7800F171238054190045847C /* ImageCacheService.swift */,
+				CE883A242381B6EF0081F156 /* DownloadManager.swift */,
+				CE883A2E2381E5260081F156 /* Services */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -233,6 +244,26 @@
 				CE1A206F237445E700FCBAB8 /* CoreDataController.swift */,
 			);
 			path = CoreData;
+			sourceTree = "<group>";
+		};
+		CE883A212381A9460081F156 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				CE883A222381A9730081F156 /* NSFetchRequestExtension.swift */,
+				78E43D0E236C5DCD008C5056 /* UIButtonExtension.swift */,
+				CE883A2A2381C0A20081F156 /* NSDateExtension.swift */,
+				CE883A2C2381D0910081F156 /* CMTimeExtension.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		CE883A2E2381E5260081F156 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				7800F171238054190045847C /* ImageCacheService.swift */,
+				CE883A2F2381E5490081F156 /* AssetsService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -313,18 +344,23 @@
 			files = (
 				7800F172238054190045847C /* ImageCacheService.swift in Sources */,
 				783C4ECB23606DAB003CBB1A /* AudioPodcastsViewController.swift in Sources */,
+				CE883A2D2381D0910081F156 /* CMTimeExtension.swift in Sources */,
 				783C4EC923606D95003CBB1A /* VideoPodcastsViewController.swift in Sources */,
 				CE1A2070237445E700FCBAB8 /* CoreDataController.swift in Sources */,
 				7803A981237037B200C4F7DE /* CaptureVideoViewController.swift in Sources */,
 				783C4ED323609386003CBB1A /* XMLParser.swift in Sources */,
 				783C4ED72361D05C003CBB1A /* CustomImageView.swift in Sources */,
 				780188EC2369812F002894D2 /* VideoPlayerViewController.swift in Sources */,
+				CE883A2B2381C0A20081F156 /* NSDateExtension.swift in Sources */,
 				783C4EFB2366EB4F003CBB1A /* UserPodcastsViewController.swift in Sources */,
 				783C4EB323606658003CBB1A /* AppDelegate.swift in Sources */,
 				78028415236B03B8001ADF1A /* AudioPlayerViewController.swift in Sources */,
 				78E43D0F236C5DCD008C5056 /* UIButtonExtension.swift in Sources */,
 				783C4ECD236075EC003CBB1A /* PodcastTableViewCell.swift in Sources */,
+				CE883A252381B6EF0081F156 /* DownloadManager.swift in Sources */,
+				CE883A232381A9730081F156 /* NSFetchRequestExtension.swift in Sources */,
 				7800F16B237D88590045847C /* SettingsViewController.swift in Sources */,
+				CE883A302381E5490081F156 /* AssetsService.swift in Sources */,
 				7800F170238039AB0045847C /* PodcastItem.swift in Sources */,
 				78E43D0C236C2546008C5056 /* RecordViewController.swift in Sources */,
 				783C4EBB23606658003CBB1A /* AVPlayer.xcdatamodeld in Sources */,

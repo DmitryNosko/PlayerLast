@@ -12,10 +12,15 @@ let FATAL_ERROR_MESSAGE = "init(coder:) has not been implemented"
 
 class CustomPodcastTableViewCell: UITableViewCell {
     
+    private struct Constants {
+        static let kFontName = "Futura-Bold"
+        static let kEmptyString = ""
+    }
+    
     var videoTitle: String?
     var videoTitleLabel: UILabel = {
         var textLabel = UILabel()
-        textLabel.font = UIFont(name: "Futura-Bold", size: 19)
+        textLabel.font = UIFont(name: Constants.kFontName, size: 19)
         textLabel.translatesAutoresizingMaskIntoConstraints = false
         textLabel.numberOfLines = 0
         return textLabel
@@ -30,8 +35,8 @@ class CustomPodcastTableViewCell: UITableViewCell {
     }()
     
     var videoImage: UIImage?
-    var videoImageView: CustomImageView = {
-        var imgView = CustomImageView()
+    var videoImageView: UIImageView = {
+        var imgView = UIImageView()
         imgView.backgroundColor = UIColor.lightGray
         imgView.layer.cornerRadius = 20
         imgView.clipsToBounds = true
@@ -43,13 +48,13 @@ class CustomPodcastTableViewCell: UITableViewCell {
         didSet {
             videoTitle = item.itemTitle
             videoDescription = item.itemDescription
-            videoImageView.loadImageUsingURLString(string: item.itemImage)
+            videoImageView.image = DownloadManager.loadImageUsingURLString(string: item.itemImage)
         }
     }
     
     override func prepareForReuse() {
-        self.videoTitleLabel.text = ""
-        self.videoDescriptionLabel.text = ""
+        self.videoTitleLabel.text = Constants.kEmptyString
+        self.videoDescriptionLabel.text = Constants.kEmptyString
         self.videoImageView.image = nil
     }
     

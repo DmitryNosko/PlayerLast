@@ -9,23 +9,17 @@
 import UIKit
 import AVFoundation
 
-extension CMTime {
-    
-    func durationTexForTime(time: CMTime) -> String {
-        let totalSeconds = CMTimeGetSeconds(time)
-        let hours = Int(totalSeconds / 3600)
-        let minutes = Int((totalSeconds.truncatingRemainder(dividingBy: 3600)) / 60)
-        let seconds = Int(totalSeconds.truncatingRemainder(dividingBy: 60))
-        
-        if hours > 0 {
-            return String(format: "%i:%02i:%02i", hours, minutes, seconds)
-        } else {
-            return String(format: "%02i:%02i", minutes, seconds)
-        }
-    }
-}
-
 class VideoPlayerViewController: UIViewController {
+    
+    private struct Constants {
+        static let kPauseImage = "pause"
+        static let kDefaultLenghtValue = "00:00"
+        static let kVolumeImage = "volume"
+        static let kCancelImage = "cancel"
+        static let kPlayImage = "play"
+        static let kLoadedTimeRanges = "currentItem.loadedTimeRanges"
+        static let kEmptyString = ""
+    }
 
     override var prefersStatusBarHidden: Bool {
         return true
@@ -34,9 +28,7 @@ class VideoPlayerViewController: UIViewController {
     @IBOutlet weak var videoView: UIView!
     var player: AVPlayer!
     var playerLayer: AVPlayerLayer!
-    var videoURL: String = ""
-    
-    //MARK: - playerElements
+    var videoURL: String = Constants.kEmptyString
     
     let controlsContainerView: UIView = {
         let view = UIView()
@@ -52,7 +44,7 @@ class VideoPlayerViewController: UIViewController {
     
     let pausePlayButton: UIButton = {
         let button = UIButton(type: .system)
-        let image = UIImage(named: "pause")
+        let image = UIImage(named: Constants.kPauseImage)
         button.setImage(image, for: .normal)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tintColor = UIColor.white
@@ -63,7 +55,7 @@ class VideoPlayerViewController: UIViewController {
     
     let videoLenghtLable: UILabel = {
         let label = UILabel()
-        label.text = "00:00"
+        label.text = Constants.kDefaultLenghtValue
         label.textColor = UIColor.white
         label.font = UIFont.boldSystemFont(ofSize: 13)
         label.textAlignment = NSTextAlignment.right
@@ -73,7 +65,7 @@ class VideoPlayerViewController: UIViewController {
     
     let currentTimeLable: UILabel = {
         let label = UILabel()
-        label.text = "00:00"
+        label.text = Constants.kDefaultLenghtValue
         label.textColor = UIColor.white
         label.font = UIFont.boldSystemFont(ofSize: 13)
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -92,7 +84,7 @@ class VideoPlayerViewController: UIViewController {
     let volumeSlider: UISlider = {
         let slider = UISlider()
         slider.translatesAutoresizingMaskIntoConstraints = false
-        slider.maximumValueImage = UIImage(named: "volume")
+        slider.maximumValueImage = UIImage(named: Constants.kVolumeImage)
         slider.minimumTrackTintColor = UIColor.red
         slider.maximumTrackTintColor = UIColor.white
         slider.addTarget(self, action: #selector(handleVolumeSliderChange), for: .valueChanged)
@@ -101,7 +93,7 @@ class VideoPlayerViewController: UIViewController {
     
     let cancelVideoButton: UIButton = {
         let button = UIButton(type: .system)
-        let image = UIImage(named: "cancel")
+        let image = UIImage(named: Constants.kCancelImage)
         button.setImage(image, for: .normal)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tintColor = UIColor.white
@@ -109,17 +101,9 @@ class VideoPlayerViewController: UIViewController {
         return button
     }()
     
-    //MARK: - VCLifeCycle methods
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-    }
-    
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         setUpPlayerView(url: videoURL)
-        controlsContainerView.frame = self.view.bounds
-        self.view.addSubview(controlsContainerView)
         configerateControlsContainerView()
     }
     
@@ -133,22 +117,22 @@ class VideoPlayerViewController: UIViewController {
         playerLayer.frame = videoView.bounds
     }
     
-    //MARK: - Selectors
+    //MARK: - Player actions
+    
     var isPlaying = false
     
     @objc func handlePause() {
         if isPlaying {
             player?.pause()
-            pausePlayButton.setImage(UIImage(named: "play"), for: .normal)
+            pausePlayButton.setImage(UIImage(named: Constants.kPlayImage), for: .normal)
         } else {
             player?.play()
-            pausePlayButton.setImage(UIImage(named: "pause"), for: .normal)
+            pausePlayButton.setImage(UIImage(named: Constants.kPauseImage), for: .normal)
         }
         isPlaying = !isPlaying
     }
     
     @objc func handleDurationSliderChange() {
-        
         if let duration = player?.currentItem?.duration {
             let totalSeconds = CMTimeGetSeconds(duration)
             let value = Float64(videoDurationSlider.value) * totalSeconds
@@ -169,12 +153,12 @@ class VideoPlayerViewController: UIViewController {
         }
     }
     
-    //MARK: - Player
+    //MARK: - Player setUp's
     
     func startPlaying() {
         player.play()
         volumeSlider.value = player.volume
-        player?.addObserver(self, forKeyPath: "currentItem.loadedTimeRanges", options: .new, context: nil)
+        player?.addObserver(self, forKeyPath: Constants.kLoadedTimeRanges, options: .new, context: nil)
         
         let interval = CMTime(value: 1, timescale: 2)
         player?.addPeriodicTimeObserver(forInterval: interval, queue: DispatchQueue.main, using: { (progressTime) in
@@ -194,7 +178,7 @@ class VideoPlayerViewController: UIViewController {
     var counter = 0
     
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == "currentItem.loadedTimeRanges" {
+        if keyPath == Constants.kLoadedTimeRanges {
             activityIndicatorView.stopAnimating()
             controlsContainerView.backgroundColor = UIColor.clear
             if counter == 0 {
@@ -215,9 +199,10 @@ class VideoPlayerViewController: UIViewController {
         }
     }
     
-    //MARK: - PlayerConfig
-    
     func configerateControlsContainerView() {
+        controlsContainerView.frame = self.view.bounds
+        self.view.addSubview(controlsContainerView)
+        
         if videoURL.first != "f" {
             controlsContainerView.addSubview(activityIndicatorView)
             setUpActivityIndicatorConstraints()
@@ -246,7 +231,8 @@ class VideoPlayerViewController: UIViewController {
         }
     }
     
-    //MARK: - touches
+    //MARK: - Touches
+    
     var timer: Timer?
     func startTimer() {
         timer = Timer.scheduledTimer(timeInterval: 5,
@@ -260,35 +246,27 @@ class VideoPlayerViewController: UIViewController {
         if(timer != nil){timer!.invalidate()}
     }
     
-    // Timer expects @objc selector
     @objc func hideAllButtons() {
-        pausePlayButton.isHidden = true
-        videoDurationSlider.isHidden = true
-        currentTimeLable.isHidden = true
-        videoLenghtLable.isHidden = true
-        cancelVideoButton.isHidden = true
-        volumeSlider.isHidden = true
+        isHiddenControls(value: true)
         stop()
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        
         if pausePlayButton.isHidden == true {
-            pausePlayButton.isHidden = false
-            videoDurationSlider.isHidden = false
-            currentTimeLable.isHidden = false
-            videoLenghtLable.isHidden = false
-            cancelVideoButton.isHidden = false
-            volumeSlider.isHidden = false
+            isHiddenControls(value: false)
             startTimer()
         } else {
-            pausePlayButton.isHidden = true
-            videoDurationSlider.isHidden = true
-            currentTimeLable.isHidden = true
-            videoLenghtLable.isHidden = true
-            cancelVideoButton.isHidden = true
-            volumeSlider.isHidden = true
+            isHiddenControls(value: true)
         }
+    }
+    
+    func isHiddenControls(value: Bool) {
+        pausePlayButton.isHidden = value
+        videoDurationSlider.isHidden = value
+        currentTimeLable.isHidden = value
+        videoLenghtLable.isHidden = value
+        cancelVideoButton.isHidden = value
+        volumeSlider.isHidden = value
     }
     
     //MARK: Constraints

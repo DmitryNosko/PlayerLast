@@ -10,7 +10,7 @@ import Foundation
 import UIKit
 
 class ImageCacheService {
-    static var imageCache = NSCache<AnyObject, AnyObject>()
+    private static var imageCache = NSCache<AnyObject, AnyObject>()
     
     static func image(string: String) -> UIImage? {
         return imageCache.object(forKey: string as AnyObject) as? UIImage

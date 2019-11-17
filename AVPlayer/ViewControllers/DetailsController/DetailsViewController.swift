@@ -52,12 +52,11 @@ class DetailsViewController: UIViewController {
         super.viewDidLoad()
         podcastImageView.layer.cornerRadius = podcastImageView.frame.width / 2
         podcastImageView.clipsToBounds = true
-        //imageWasLoadHandler()
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        coreDataManager.updateItem2(item: podcastItem!)
+        coreDataManager.updateItemURL(item: podcastItem!)
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -135,11 +134,9 @@ class DetailsViewController: UIViewController {
                 let destinationURL = documentsDirectoryURL.appendingPathComponent(response?.suggestedFilename ?? audioURL.lastPathComponent)
                 do {
                     try FileManager.default.moveItem(at: location!, to: destinationURL)
-                    print("lastPathConeAUDIO = \(audioURL.lastPathComponent)")
                     self.podcastItem?.itemURL = audioURL.lastPathComponent
                     self.podcastItem?.itemIsDownloaded = true
                     self.performSelector(onMainThread: #selector(self.videoWasDownloadedHandler), with: nil, waitUntilDone: false)
-                    print("Audio created")
                 } catch let error as NSError {
                     print("can't move file error: \(error.localizedDescription)")
                 }
@@ -156,7 +153,6 @@ class DetailsViewController: UIViewController {
         guard let videoURL = URL(string: videoLink) else { return }
         guard let documentsDirectoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
         if !FileManager.default.fileExists(atPath: documentsDirectoryURL.appendingPathComponent(videoURL.lastPathComponent).path) {
-             print("documents direct \(documentsDirectoryURL)")
             URLSession.shared.downloadTask(with: videoURL) {
                 (location, response, error) -> Void in
                 guard let location = location else { return }
@@ -171,7 +167,6 @@ class DetailsViewController: UIViewController {
                                         self.podcastItem?.itemURL = videoURL.lastPathComponent
                                         self.podcastItem?.itemIsDownloaded = true
                                         self.performSelector(onMainThread: #selector(self.videoWasDownloadedHandler), with: nil, waitUntilDone: false)
-                                        print("Video created")
                                     } else {
                                         print("error to load video")
                                     }
@@ -180,7 +175,6 @@ class DetailsViewController: UIViewController {
                     })
                 } catch { print(error) }
                 }.resume()
-            
         } else {
             print("File already exists at destination url")
         }

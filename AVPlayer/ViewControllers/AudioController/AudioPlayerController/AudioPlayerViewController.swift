@@ -11,9 +11,20 @@ import AVFoundation
 
 class AudioPlayerViewController: UIViewController {
     
+    private struct Constants {
+        static let kPauseImage = "pause"
+        static let kDefaultLenghtValue = "00:00"
+        static let kVolumeImage = "volume"
+        static let kCancelImage = "cancel"
+        static let kPlayImage = "play"
+        static let kLoadedTimeRanges = "currentItem.loadedTimeRanges"
+        static let kEmptyString = ""
+    }
+    
     var player: AVPlayer!
-    var audioURL: String = ""
+    var audioURL: String = Constants.kEmptyString
     var podcstPlayerImage: UIImage!
+    var isPlaying = false
 
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
     @IBOutlet weak var videoSlider: UISlider!
@@ -34,9 +45,7 @@ class AudioPlayerViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        podcastImage.image = podcstPlayerImage
-        podcastImage.layer.cornerRadius = 30
-        podcastImage.clipsToBounds = true
+        setUpPodcastImage()
         setUpPlayer()
     }
     
@@ -57,7 +66,7 @@ class AudioPlayerViewController: UIViewController {
     
     func startPlaying() {
         player.play()
-        player?.addObserver(self, forKeyPath: "currentItem.loadedTimeRanges", options: .new, context: nil)
+        player?.addObserver(self, forKeyPath: Constants.kLoadedTimeRanges, options: .new, context: nil)
         
         let interval = CMTime(value: 1, timescale: 2)
         player?.addPeriodicTimeObserver(forInterval: interval, queue: DispatchQueue.main, using: { (progressTime) in
@@ -66,7 +75,6 @@ class AudioPlayerViewController: UIViewController {
             let seconds = CMTimeGetSeconds(progressTime)
             let totalSeconds = time.durationTexForTime(time: progressTime)
             self.currentTimeLabel.text = "\(totalSeconds)"
-            
             if let duration = self.player?.currentItem?.duration {
                 let durationSeconds = CMTimeGetSeconds(duration)
                 self.videoSlider.value = Float(seconds / durationSeconds)
@@ -77,7 +85,7 @@ class AudioPlayerViewController: UIViewController {
     var counter = 0
     
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == "currentItem.loadedTimeRanges" {
+        if keyPath == Constants.kLoadedTimeRanges {
             activityIndicator.stopAnimating()
             if let duration = player?.currentItem?.duration {
                 let time = CMTime()
@@ -91,7 +99,6 @@ class AudioPlayerViewController: UIViewController {
         let url = URL(string: audioURL)!
         player = AVPlayer(url: url)
         let audioSession = AVAudioSession.sharedInstance()
-        
         do {
             try audioSession.setCategory(AVAudioSessionCategoryPlayback)
         } catch {
@@ -99,7 +106,13 @@ class AudioPlayerViewController: UIViewController {
         }
     }
     
-    var isPlaying = false
+    func setUpPodcastImage() {
+        podcastImage.image = podcstPlayerImage
+        podcastImage.layer.cornerRadius = 30
+        podcastImage.clipsToBounds = true
+    }
+ 
+    //MARK: - Player actions
     
     @IBAction func playAction(_ sender: UIButton) {
         sender.pulsate()

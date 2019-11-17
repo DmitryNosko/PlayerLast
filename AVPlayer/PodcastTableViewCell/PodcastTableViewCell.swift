@@ -11,10 +11,15 @@ import UIKit
 
 class PodcastTableViewCell: UITableViewCell {
     
+    private struct Constants {
+        static let kFontName = "Futura-Bold"
+        static let kEmptyString = ""
+    }
+    
     var videoTitle: String?
     var videoTitleLabel: UILabel = {
         var textLabel = UILabel()
-        textLabel.font = UIFont(name: "Futura-Bold", size: 19)
+        textLabel.font = UIFont(name: Constants.kFontName, size: 19)
         textLabel.translatesAutoresizingMaskIntoConstraints = false
         textLabel.numberOfLines = 0
         return textLabel
@@ -30,8 +35,8 @@ class PodcastTableViewCell: UITableViewCell {
     }()
     
     var videoImage: UIImage?
-    var videoImageView: CustomImageView = {
-       var imgView = CustomImageView()
+    var videoImageView: UIImageView = {
+       var imgView = UIImageView()
         imgView.backgroundColor = UIColor.lightGray
         imgView.layer.cornerRadius = 20
         imgView.clipsToBounds = true
@@ -43,13 +48,13 @@ class PodcastTableViewCell: UITableViewCell {
         didSet {
             videoTitle = item.itemTitle
             videoStatus = item.itemProgressStatus.rawValue
-            videoImageView.loadImageUsingURLString(string: item.itemImage)
+            videoImageView.image = DownloadManager.loadImageUsingURLString(string: item.itemImage)
         }
     }
 
     override func prepareForReuse() {
-        self.videoTitleLabel.text = ""
-        self.videoStatusLabel.text = ""
+        self.videoTitleLabel.text = Constants.kEmptyString
+        self.videoStatusLabel.text = Constants.kEmptyString
         self.videoImageView.image = nil
     }
     
@@ -79,7 +84,6 @@ class PodcastTableViewCell: UITableViewCell {
     }
     
     func setUpViewsConstraints() -> Void {
-        
         videoStatusLabel.topAnchor.constraint(equalTo: topAnchor, constant: 5).isActive = true
         videoStatusLabel.rightAnchor.constraint(equalTo: rightAnchor, constant: -5).isActive = true
         

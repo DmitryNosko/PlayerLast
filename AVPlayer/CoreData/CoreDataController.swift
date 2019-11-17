@@ -11,12 +11,31 @@ import CoreData
 
 class CoreDataManager: NSObject {
     
-    let podcastName = "Item"
+    private struct Constants {
+        static let kPodcastName = "Item"
+        static let kAppName = "AVPlayer"
+        static let kDataBaseName = "AVPlayer.sqlite"
+        static let kItemIdentifier = "identifier"
+        static let kItemIsDownloaded = "itemIsDownloaded"
+        static let kItemAuthor = "itemAuthor"
+        static let kItemDescription = "itemDescription"
+        static let kItemDuration = "itemDuration"
+        static let kItemImage = "itemImage"
+        static let kItemPubDate = "itemPubDate"
+        static let kItemTitle = "itemTitle"
+        static let kItemURL = "itemURL"
+        static let kItemIsDeleted = "itemIsDeleted"
+        static let kItemMediaType = "itemMediaType"
+        static let kItemProgressStatus = "itemProgressStatus"
+        static let kItemProgresStatusWatched = "watched"
+        static let kItemMediaTypeCustom = "customType"
+
+    }
     
     lazy var persistentContainer: NSPersistentContainer = {
-        let container = NSPersistentContainer(name: "AVPlayer")
+        let container = NSPersistentContainer(name: Constants.kAppName)
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).last
-        let url = documentsDirectory?.appendingPathComponent("AVPlayer.sqlite")
+        let url = documentsDirectory?.appendingPathComponent(Constants.kDataBaseName)
         container.persistentStoreDescriptions = [NSPersistentStoreDescription(url: url!)]
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {
@@ -29,19 +48,19 @@ class CoreDataManager: NSObject {
     //MARK : Methods
     
     func addItem(item: PodcastItem) {
-        let newItem = NSEntityDescription.insertNewObject(forEntityName: podcastName, into: self.persistentContainer.viewContext)
-        newItem.setValue(item.identifier, forKey: "identifier")
-        newItem.setValue(item.itemIsDownloaded, forKey: "itemIsDownloaded")
-        newItem.setValue(item.itemAuthor, forKey: "itemAuthor")
-        newItem.setValue(item.itemDescription, forKey: "itemDescription")
-        newItem.setValue(item.itemDuration, forKey: "itemDuration")
-        newItem.setValue(item.itemImage, forKey: "itemImage")
-        newItem.setValue(item.itemPubDate, forKey: "itemPubDate")
-        newItem.setValue(item.itemTitle, forKey: "itemTitle")
-        newItem.setValue(item.itemURL, forKey: "itemURL")
-        newItem.setValue(item.itemIsDeleted, forKey: "itemIsDeleted")
-        newItem.setValue(item.itemMediaType.rawValue, forKey: "itemMediaType")
-        newItem.setValue(item.itemProgressStatus.rawValue, forKey: "itemProgressStatus")
+        let newItem = NSEntityDescription.insertNewObject(forEntityName: Constants.kPodcastName, into: self.persistentContainer.viewContext)
+        newItem.setValue(item.identifier, forKey: Constants.kItemIdentifier)
+        newItem.setValue(item.itemIsDownloaded, forKey: Constants.kItemIsDownloaded)
+        newItem.setValue(item.itemAuthor, forKey: Constants.kItemAuthor)
+        newItem.setValue(item.itemDescription, forKey: Constants.kItemDescription)
+        newItem.setValue(item.itemDuration, forKey: Constants.kItemDuration)
+        newItem.setValue(item.itemImage, forKey: Constants.kItemImage)
+        newItem.setValue(item.itemPubDate, forKey: Constants.kItemPubDate)
+        newItem.setValue(item.itemTitle, forKey: Constants.kItemTitle)
+        newItem.setValue(item.itemURL, forKey: Constants.kItemURL)
+        newItem.setValue(item.itemIsDeleted, forKey: Constants.kItemIsDeleted)
+        newItem.setValue(item.itemMediaType.rawValue, forKey: Constants.kItemMediaType)
+        newItem.setValue(item.itemProgressStatus.rawValue, forKey: Constants.kItemProgressStatus)
         do {
             try self.persistentContainer.viewContext.save()
         } catch {
@@ -50,81 +69,42 @@ class CoreDataManager: NSObject {
     }
     
     func deleteItem(item: PodcastItem) {
-        let request = NSFetchRequest<NSFetchRequestResult>(entityName: podcastName)
-        request.predicate = NSPredicate(format: "itemURL = %@", item.itemURL)
-        request.returnsObjectsAsFaults = false
+        let request = NSFetchRequest<NSFetchRequestResult>.fetchRequest(entity: Constants.kPodcastName, predicate: NSPredicate(format: "itemURL = %@", item.itemURL))
         do {
             let resultItem = try persistentContainer.viewContext.fetch(request).first as! NSManagedObject
             self.persistentContainer.viewContext.delete(resultItem)
             try self.persistentContainer.viewContext.save()
         } catch {
-            print("Failed to fetchItems")
+            print(error)
         }
     }
     
-    func deleteAllFeedItemsForType(type: MediaType) {
-        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: podcastName)
-        fetchRequest.returnsObjectsAsFaults = false
-        fetchRequest.predicate = NSPredicate(format: "itemMediaType = %@", type.rawValue)
+    func deleteAllItemsForMediaType(type: MediaType) {
+        let request = NSFetchRequest<NSFetchRequestResult>.fetchRequest(entity: Constants.kPodcastName, predicate: NSPredicate(format: "itemMediaType = %@", type.rawValue))
         do {
-            let results = try self.persistentContainer.viewContext.fetch(fetchRequest)
+            let results = try self.persistentContainer.viewContext.fetch(request)
             for object in results {
                 guard let objectData = object as? NSManagedObject else {continue}
                 self.persistentContainer.viewContext.delete(objectData)
             }
         } catch let error {
-            print("Detele all data in \(podcastName) error :", error)
+            print(error)
         }
     }
     
     func updateItem(item: PodcastItem) {
-        let request = NSFetchRequest<NSFetchRequestResult>(entityName: podcastName)
-        request.predicate = NSPredicate(format: "itemURL = %@", item.itemURL)
-        request.returnsObjectsAsFaults = false
+        let request = NSFetchRequest<NSFetchRequestResult>.fetchRequest(entity: Constants.kPodcastName, predicate: NSPredicate(format: "itemURL = %@", item.itemURL))
         do {
             let result: NSManagedObject?
             result = try (persistentContainer.viewContext.fetch(request).first as? NSManagedObject)
             if result != nil {
-                result!.setValue(item.itemIsDeleted, forKey: "itemIsDeleted")
-                result!.setValue(item.itemIsDownloaded, forKey: "itemIsDownloaded")
-                result!.setValue(item.itemProgressStatus.rawValue, forKey: "itemProgressStatus")
+                result!.setValue(item.itemIsDeleted, forKey: Constants.kItemIsDeleted)
+                result!.setValue(item.itemIsDownloaded, forKey: Constants.kItemIsDownloaded)
+                result!.setValue(item.itemProgressStatus.rawValue, forKey: Constants.kItemProgressStatus)
                 try self.persistentContainer.viewContext.save()
             }
         } catch {
-            print("Failed to fetchItems")
-        }
-    }
-    
-    func updateItem2(item: PodcastItem) {
-        let request = NSFetchRequest<NSFetchRequestResult>(entityName: podcastName)
-        request.predicate = NSPredicate(format: "itemTitle = %@", item.itemTitle)
-        request.returnsObjectsAsFaults = false
-        do {
-            let result: NSManagedObject?
-            result = try (persistentContainer.viewContext.fetch(request).first as? NSManagedObject)
-            if result != nil {
-                result!.setValue(item.itemIsDeleted, forKey: "itemIsDeleted")
-                result!.setValue(item.itemIsDownloaded, forKey: "itemIsDownloaded")
-                result!.setValue(item.itemProgressStatus.rawValue, forKey: "itemProgressStatus")
-                result!.setValue(item.itemURL, forKey: "itemURL")
-                try self.persistentContainer.viewContext.save()
-            }
-        } catch {
-            print("Failed to fetchItems")
-        }
-    }
-    
-    func updateItemURL(item: PodcastItem, url: String, isDownloaded: Bool) {
-        let request = NSFetchRequest<NSFetchRequestResult>(entityName: podcastName)
-        request.predicate = NSPredicate(format: "itemURL = %@", item.itemURL)
-        request.returnsObjectsAsFaults = false
-        do {
-            let result = try persistentContainer.viewContext.fetch(request).first as! NSManagedObject
-            result.setValue(isDownloaded, forKey: "itemIsDownloaded")
-            result.setValue(url, forKey: "itemURL")
-            try self.persistentContainer.viewContext.save()
-        } catch {
-            print("Failed to fetchItems")
+            print(error)
         }
     }
     
@@ -137,39 +117,50 @@ class CoreDataManager: NSObject {
     }
     
     func wathedInProgressItems() -> [PodcastItem] {
-        return fetchItemsBy(predicate: NSPredicate(format: "itemProgressStatus = %@", "watched"))
+        return fetchItemsBy(predicate: NSPredicate(format: "itemProgressStatus = %@", Constants.kItemProgresStatusWatched))
     }
     
     func customItemsURlS() -> [String] {
         var urls = [String]()
-        let customItems = fetchItemsBy(predicate: NSPredicate(format: "itemMediaType = %@", "customType"))
+        let customItems = fetchItemsBy(predicate: NSPredicate(format: "itemMediaType = %@", Constants.kItemMediaTypeCustom))
         for item in customItems {
             urls.append(item.itemURL)
         }
-        
         return urls
     }
     
     func fetchItemsBy(predicate: NSPredicate) -> [PodcastItem] {
         var items = [PodcastItem]()
-        
-        let request = NSFetchRequest<NSFetchRequestResult>(entityName: podcastName)
-        request.predicate = predicate
-        request.returnsObjectsAsFaults = false
+        let request = NSFetchRequest<NSFetchRequestResult>.fetchRequest(entity: Constants.kPodcastName, predicate: predicate)
         do {
             let result = try persistentContainer.viewContext.fetch(request)
             for object in result as! [NSManagedObject] {
-                let mediaType = MediaType(rawValue: object.value(forKeyPath: "itemMediaType") as! String)
-                let progressStatus = ProgressStatus(rawValue: object.value(forKeyPath: "itemProgressStatus") as! String)
+                let mediaType = MediaType(rawValue: object.value(forKeyPath: Constants.kItemMediaType) as! String)
+                let progressStatus = ProgressStatus(rawValue: object.value(forKeyPath: Constants.kItemProgressStatus) as! String)
                 
-                let fetchedItem = PodcastItem(identifier: object.value(forKey: "identifier") as! UUID, itemTitle: object.value(forKey: "itemTitle") as! String, itemDescription: object.value(forKey: "itemDescription") as! String, itemPubDate: object.value(forKey: "itemPubDate") as! String, itemDuration: object.value(forKey: "itemDuration") as! String, itemURL: object.value(forKey: "itemURL") as! String, itemImage: object.value(forKey: "itemImage") as! String, itemAuthor: object.value(forKey: "itemAuthor") as! String, itemIsDownloaded: (object.primitiveValue(forKey: "itemIsDownloaded") != nil), itemIsDeleted: (object.value(forKey: "itemIsDeleted") != nil), itemMediaType: mediaType!, itemProgressStatus: progressStatus!)
+                let fetchedItem = PodcastItem(identifier: object.value(forKey: Constants.kItemIdentifier) as! UUID, itemTitle: object.value(forKey: Constants.kItemTitle) as! String, itemDescription: object.value(forKey: Constants.kItemDescription) as! String, itemPubDate: object.value(forKey: Constants.kItemPubDate) as! String, itemDuration: object.value(forKey: Constants.kItemDuration) as! String, itemURL: object.value(forKey: Constants.kItemURL) as! String, itemImage: object.value(forKey: Constants.kItemImage) as! String, itemAuthor: object.value(forKey: Constants.kItemAuthor) as! String, itemIsDownloaded: (object.primitiveValue(forKey: Constants.kItemIsDownloaded) != nil), itemIsDeleted: (object.value(forKey: Constants.kItemIsDeleted) != nil), itemMediaType: mediaType!, itemProgressStatus: progressStatus!)
                 items.append(fetchedItem)
             }
         } catch {
-            print("Failed to fetchItems")
+            print(error)
         }
         
         return items
+    }
+    
+    func updateItemURL(item: PodcastItem) {
+        let request = NSFetchRequest<NSFetchRequestResult>.fetchRequest(entity: Constants.kPodcastName, predicate: NSPredicate(format: "itemTitle = %@", item.itemTitle))
+        do {
+            let result: NSManagedObject?
+            result = try (persistentContainer.viewContext.fetch(request).first as? NSManagedObject)
+            if result != nil {
+                result!.setValue(item.itemIsDownloaded, forKey: Constants.kItemIsDownloaded)
+                result!.setValue(item.itemURL, forKey: Constants.kItemURL)
+                try self.persistentContainer.viewContext.save()
+            }
+        } catch {
+            print(error)
+        }
     }
     
 }

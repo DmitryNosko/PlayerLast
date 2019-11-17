@@ -9,41 +9,35 @@
 import Foundation
 import UIKit
 
-class CustomImageView: UIImageView {
-    
-    var imageURLstring: String?
-    var imageDownloadedHandler: ((UIImage) -> Void)?
-    //let cache = ImageCacheService()
-    
-    func loadImageUsingURLString(string: String) {
-        imageURLstring = string
-        
-        let url = URL(string: string)
-        self.image = nil
-        
-//        if let imagefromCache = imageCache.object(forKey: string as AnyObject) as? UIImage {
+//class CustomImageView: UIImageView {
+//    
+//    var imageURLstring: String?
+//    
+//    func loadImageUsingURLString(string: String) {
+//        imageURLstring = string
+//        
+//        let url = URL(string: string)
+//        self.image = nil
+//        
+//        if let imagefromCache = ImageCacheService.image(string: string) {
 //            self.image = imagefromCache
 //            return
 //        }
-        
-        if let imagefromCache = ImageCacheService.image(string: string) {
-            self.image = imagefromCache
-            return
-        }
-        
-        URLSession.shared.dataTask(with: url!) { (data, response, error) in
-            if error != nil {
-                return
-            }
-            
-            DispatchQueue.main.async {
-                let imageToCache = UIImage(data: data!)
-                if self.imageURLstring == string {
-                    self.image = imageToCache
-                }
-//                imageCache.setObject(imageToCache!, forKey: string as AnyObject)
-                ImageCacheService.add(image: imageToCache!, key: string)
-            }
-        }.resume()
-    }
-}
+//        
+//        URLSession.shared.dataTask(with: url!) { (data, response, error) in
+//            if error != nil {
+//                return
+//            }
+//            
+//            DispatchQueue.main.async {
+//                let imageToCache = UIImage(data: data!)
+//                if self.imageURLstring == string {
+//                    self.image = imageToCache
+//                }
+//                ImageCacheService.add(image: imageToCache!, key: string)
+//            }
+//            
+//        }.resume()
+//    }
+//
+//}

@@ -8,10 +8,19 @@
 
 import UIKit
 
-let TED_TALKS_AUDIO_RESOURCE_URL: String = "https://feeds.feedburner.com/HanselminutesCompleteMP3"
-let AUDIO_CELL_IDENTIFIER: String = "Cell"
-
 class AudioPodcastsViewController: UITableViewController {
+    
+    private struct Constants {
+        static let kTedTalksAudioPodcast = "https://feeds.feedburner.com/HanselminutesCompleteMP3"
+        static let kAudioCellIdentifier = "Cell"
+        static let kItemMediaTypeAudio = "audioType"
+        static let kSettingsSort = "sort"
+        static let kSettingsDelete = "delete"
+        static let kSegueShowDetailsID = "showAudioDetails"
+        static let kProgressStatusWathed = "watched"
+        static let kProgressStatusNew = "new"
+        static let kEmptyString = ""
+    }
     
     let feedParser = FeedParser()
     let coreDataManager = CoreDataManager()
@@ -19,9 +28,9 @@ class AudioPodcastsViewController: UITableViewController {
     
     private var displayedAudioItems: [PodcastItem]?
     private var parsedAudioItems: [PodcastItem]?
-    var deletedItems: [PodcastItem]?
-    var watchedInProgressItems: [PodcastItem]?
-    var allPreviusItems: [PodcastItem]?
+    private var deletedItems: [PodcastItem]?
+    private var watchedInProgressItems: [PodcastItem]?
+    private var allPreviusItems: [PodcastItem]?
     
     lazy var activityIndicator: UIActivityIndicatorView = {
         let indicator = UIActivityIndicatorView()
@@ -36,44 +45,19 @@ class AudioPodcastsViewController: UITableViewController {
         setUpTableView()
         setUpNavigationItem()
         indicatorConstraints()
-        
         displayedAudioItems = [PodcastItem]()
         parsedAudioItems = [PodcastItem]()
         deletedItems = coreDataManager.deletedItems()
         watchedInProgressItems = coreDataManager.wathedInProgressItems()
-        allPreviusItems = coreDataManager.fetchItemsBy(predicate: NSPredicate(format: "itemMediaType = %@", "audioType"))
-        
+        allPreviusItems = coreDataManager.fetchItemsBy(predicate: NSPredicate(format: "itemMediaType = %@", Constants.kItemMediaTypeAudio))
+        feedParser.parseFeed(url: Constants.kTedTalksAudioPodcast)
         itemWasLoadedHandler()
-        coreDataManager.deleteAllFeedItemsForType(type: MediaType.audioType)
-        feedParser.parseFeed(url: TED_TALKS_AUDIO_RESOURCE_URL)
         parserDidEndDocumetnHandler()
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        allPreviusItems = coreDataManager.fetchItemsBy(predicate: NSPredicate(format: "itemMediaType = %@", "videoType"))
-        watchedInProgressItems = coreDataManager.wathedInProgressItems()
-        let currentSortValue = userDefaults.integer(forKey: "sort")
-        let currentDeleteModeValue = userDefaults.integer(forKey: "delete")
-        
-        let res = sortPodcastsInMode(podcasts: displayedAudioItems!, asc: currentSortValue)
-        displayedAudioItems?.removeAll()
-        displayedAudioItems?.append(contentsOf: res)
-        
-        if currentDeleteModeValue == 1 {
-            for item in watchedInProgressItems! {
-                coreDataManager.updateItem(item: item)
-                for podcast in displayedAudioItems! {
-                    if podcast.itemURL == item.itemURL {
-                        let index = displayedAudioItems!.firstIndex(where: {$0 == podcast})
-                        displayedAudioItems?.remove(at: index!)
-                    }
-                }
-            }
-        }
-        
-        
-        tableView.reloadSections(IndexSet(integer: 0), with: .left)
+        prepareDisplayedContentItems()
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -81,55 +65,6 @@ class AudioPodcastsViewController: UITableViewController {
         if let dvi = displayedAudioItems, dvi.count == 0 {
             activityIndicator.startAnimating()
         }
-    }
-    
-    func itemWasLoadedHandler() {
-        feedParser.itemDownloadedHandler = { (audioItem) in
-            DispatchQueue.main.async {
-                self.addParsedFeedItemToFeeds(item: audioItem)
-            }
-        }
-    }
-    
-    func parserDidEndDocumetnHandler() {
-        feedParser.parserDidEndDocumentHandler = {[weak self] in
-            self?.activityIndicator.stopAnimating()
-            let res = self!.sortPodcastsInMode(podcasts: self!.parsedAudioItems!, asc: self!.userDefaults.integer(forKey: "sort"))
-            self?.displayedAudioItems?.append(contentsOf: res)
-            DispatchQueue.main.async {
-                self?.tableView.reloadSections(IndexSet(integer: 0), with: .left)
-            }
-        }
-    }
-    
-    func sortPodcastsInMode(podcasts: [PodcastItem], asc: Int) -> [PodcastItem] {
-        var sorted = podcasts
-        sorted.sort(by: { (item1, item2) -> Bool in
-            let date1 = self.dateFromString(str: item1.itemPubDate)
-            let date2 = self.dateFromString(str: item2.itemPubDate)
-            let res = (date1.compare(date2)).rawValue
-            if asc == 0 {
-                if res == 1 {
-                    return true
-                } else {
-                    return false
-                }
-            } else {
-                if res == 1 {
-                    return false
-                } else {
-                    return true
-                }
-            }
-        })
-        return sorted
-    }
-    
-    func dateFromString(str: String) -> Date {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-        let date = dateFormatter.date(from: str)
-        return date!
     }
     
     // MARK: - Table view data source
@@ -142,13 +77,13 @@ class AudioPodcastsViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: AUDIO_CELL_IDENTIFIER, for: indexPath) as! PodcastTableViewCell
+        let cell = tableView.dequeueReusableCell(withIdentifier: Constants.kAudioCellIdentifier, for: indexPath) as! PodcastTableViewCell
         if var item = displayedAudioItems?[indexPath.row] {
             var added = false
             for it in watchedInProgressItems! {
                 if it.itemTitle == item.itemTitle {
                     item.itemURL = it.itemURL
-                    item.itemProgressStatus = ProgressStatus(rawValue: "watched")!
+                    item.itemProgressStatus = ProgressStatus(rawValue: Constants.kProgressStatusWathed)!
                     cell.item = item
                     added = true
                 } else {
@@ -179,11 +114,13 @@ class AudioPodcastsViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        performSegue(withIdentifier: "showAudioDetails", sender: self)
+        performSegue(withIdentifier: Constants.kSegueShowDetailsID, sender: self)
     }
     
+    //MARK: Navigation
+    
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        if segue.identifier == "showAudioDetails" {
+        if segue.identifier == Constants.kSegueShowDetailsID {
             let destinationVC: DetailsViewController = segue.destination as! DetailsViewController
             if let indexPath = self.tableView.indexPathForSelectedRow {
                 if let cell = self.tableView.cellForRow(at: indexPath) {
@@ -201,12 +138,70 @@ class AudioPodcastsViewController: UITableViewController {
         }
     }
     
-    // Mark: - SetUp's
+    //MARK: parser handlers
+    
+    func itemWasLoadedHandler() {
+        feedParser.itemDownloadedHandler = { (audioItem) in
+            DispatchQueue.main.async {
+                self.addParsedFeedItemToFeeds(item: audioItem)
+            }
+        }
+    }
+    
+    func parserDidEndDocumetnHandler() {
+        feedParser.parserDidEndDocumentHandler = {[weak self] in
+            self?.activityIndicator.stopAnimating()
+            let res = self!.sortPodcastsInMode(podcasts: self!.parsedAudioItems!, asc: self!.userDefaults.integer(forKey: "sort"))
+            self?.displayedAudioItems?.append(contentsOf: res)
+            DispatchQueue.main.async {
+                self?.tableView.reloadSections(IndexSet(integer: 0), with: .left)
+            }
+        }
+    }
+    
+    func addParsedFeedItemToFeeds(item: PodcastItem) {
+        var newItem: PodcastItem?
+        if item.isDeletedItem(deleted: deletedItems) {
+            let isWathedInProgress = item.watchedInProgressStatus(watched: watchedInProgressItems)
+            newItem = PodcastItem(identifier: item.identifier, itemTitle: item.itemTitle, itemDescription: item.itemDescription, itemPubDate: item.itemPubDate, itemDuration: item.itemDuration, itemURL: item.itemURL, itemImage: item.itemImage, itemAuthor: item.itemAuthor, itemIsDownloaded:false, itemIsDeleted: true, itemMediaType: item.itemMediaType, itemProgressStatus: isWathedInProgress)
+            coreDataManager.addItem(item: newItem!)
+        } else {
+            let prevData = getPreviusData(item: item)
+            var url = item.itemURL
+            var status = item.itemProgressStatus
+            
+            if prevData.0 != Constants.kEmptyString {
+                url = prevData.0
+                status = prevData.1
+            }
+            
+            newItem = PodcastItem(identifier: item.identifier, itemTitle: item.itemTitle, itemDescription: item.itemDescription, itemPubDate: item.itemPubDate, itemDuration: item.itemDuration, itemURL: url, itemImage: item.itemImage, itemAuthor: item.itemAuthor, itemIsDownloaded:false, itemIsDeleted: false, itemMediaType: item.itemMediaType, itemProgressStatus: status)
+            
+            parsedAudioItems?.append(newItem!)
+            coreDataManager.addItem(item: newItem!)
+        }
+    }
+    
+    func getPreviusData(item: PodcastItem) -> (String, ProgressStatus) {
+        var oldUrl: String?
+        var progress: ProgressStatus?
+        
+        for it in allPreviusItems! {
+            if it.itemTitle == item.itemTitle {
+                oldUrl = it.itemURL
+                progress = it.itemProgressStatus
+                return (oldUrl!, progress!)
+            }
+        }
+        return (Constants.kEmptyString, ProgressStatus(rawValue: Constants.kProgressStatusNew)!)
+    }
+    
+    // Mark: - VK SetUp's
     
     func setUpTableView() {
         self.tableView.addSubview(activityIndicator)
         self.tableView.separatorStyle = .none
-        self.tableView.register(PodcastTableViewCell.self, forCellReuseIdentifier: AUDIO_CELL_IDENTIFIER)
+        self.tableView.register(PodcastTableViewCell.self, forCellReuseIdentifier: Constants.kAudioCellIdentifier)
         self.tableView.estimatedRowHeight = 200
     }
     
@@ -220,69 +215,62 @@ class AudioPodcastsViewController: UITableViewController {
         parsedAudioItems?.removeAll()
         deletedItems = coreDataManager.deletedItems()
         watchedInProgressItems = coreDataManager.wathedInProgressItems()
-        coreDataManager.deleteAllFeedItemsForType(type: MediaType.audioType)
-        feedParser.parseFeed(url: TED_TALKS_AUDIO_RESOURCE_URL)
+        coreDataManager.deleteAllItemsForMediaType(type: MediaType.audioType)
+        feedParser.parseFeed(url: Constants.kTedTalksAudioPodcast)
         tableView.reloadSections(IndexSet(integer: 0), with: .left)
     }
     
-    //MARK: - Block's
-    
-    func addParsedFeedItemToFeeds(item: PodcastItem) {
-        var newItem: PodcastItem?
-        if isDeletedItem(item: item) {
-            let isWathedInProgress = watchedInProgressStatus(item: item)
-            newItem = PodcastItem(identifier: item.identifier, itemTitle: item.itemTitle, itemDescription: item.itemDescription, itemPubDate: item.itemPubDate, itemDuration: item.itemDuration, itemURL: item.itemURL, itemImage: item.itemImage, itemAuthor: item.itemAuthor, itemIsDownloaded:false, itemIsDeleted: true, itemMediaType: item.itemMediaType, itemProgressStatus: isWathedInProgress)
-            coreDataManager.addItem(item: newItem!)
-        } else {
-            let prevData = getPreviusURL(item: item)
-            
-            if prevData.0 != "" {
-                newItem = PodcastItem(identifier: item.identifier, itemTitle: item.itemTitle, itemDescription: item.itemDescription, itemPubDate: item.itemPubDate, itemDuration: item.itemDuration, itemURL: prevData.0, itemImage: item.itemImage, itemAuthor: item.itemAuthor, itemIsDownloaded:false, itemIsDeleted: item.itemIsDeleted, itemMediaType: item.itemMediaType, itemProgressStatus: prevData.1)
-            } else {
-                newItem = PodcastItem(identifier: item.identifier, itemTitle: item.itemTitle, itemDescription: item.itemDescription, itemPubDate: item.itemPubDate, itemDuration: item.itemDuration, itemURL: item.itemURL, itemImage: item.itemImage, itemAuthor: item.itemAuthor, itemIsDownloaded:false, itemIsDeleted: item.itemIsDeleted, itemMediaType: item.itemMediaType, itemProgressStatus: item.itemProgressStatus)
-            }
-            parsedAudioItems?.append(newItem!)
-            coreDataManager.addItem(item: newItem!)
-        }
-    }
-    
-    func getPreviusURL(item: PodcastItem) -> (String, ProgressStatus) {
-        var oldUrl: String?
-        var progress: ProgressStatus?
+    func prepareDisplayedContentItems() {
+        allPreviusItems = coreDataManager.fetchItemsBy(predicate: NSPredicate(format: "itemMediaType = %@", Constants.kItemMediaTypeAudio))
+        watchedInProgressItems = coreDataManager.wathedInProgressItems()
+        let currentSortValue = userDefaults.integer(forKey: Constants.kSettingsSort)
+        let currentDeleteModeValue = userDefaults.integer(forKey: Constants.kSettingsDelete)
         
-        for it in allPreviusItems! {
-            if it.itemTitle == item.itemTitle {
-                oldUrl = it.itemURL
-                progress = it.itemProgressStatus
-                return (oldUrl!, progress!)
-            }
-        }
-        return ("", ProgressStatus(rawValue: "new")!)
-    }
-    
-    func watchedInProgressStatus(item: PodcastItem) -> ProgressStatus {
-        var status = ProgressStatus(rawValue: "new")!
-        if watchedInProgressItems!.count > 0 {
-            for it in watchedInProgressItems! {
-                if item.itemURL == it.itemURL {
-                    status = ProgressStatus(rawValue: "watched")!
+        let res = sortPodcastsInMode(podcasts: displayedAudioItems!, asc: currentSortValue)
+        displayedAudioItems?.removeAll()
+        displayedAudioItems?.append(contentsOf: res)
+        
+        if currentDeleteModeValue == 1 {
+            for item in watchedInProgressItems! {
+                coreDataManager.updateItem(item: item)
+                for podcast in displayedAudioItems! {
+                    if podcast.itemURL == item.itemURL {
+                        let index = displayedAudioItems?.index(of: podcast)
+                        //let index = displayedAudioItems!.firstIndex(where: {$0 == podcast})
+                        displayedAudioItems?.remove(at: index!)
+                    }
                 }
             }
         }
-        return status
+        
+        tableView.reloadSections(IndexSet(integer: 0), with: .left)
+        coreDataManager.deleteAllItemsForMediaType(type: MediaType.audioType)
     }
     
-    func isDeletedItem(item: PodcastItem) -> Bool {
-        var isDeleted = false
-        if deletedItems!.count > 0 {
-            for it in deletedItems! {
-                if item.itemURL == it.itemURL {
-                    isDeleted = true
+    func sortPodcastsInMode(podcasts: [PodcastItem], asc: Int) -> [PodcastItem] {
+        var sorted = podcasts
+        sorted.sort(by: { (item1, item2) -> Bool in
+            let date1 = Date.dateFromString(str: item1.itemPubDate)
+            let date2 = Date.dateFromString(str: item2.itemPubDate)
+            let res = (date1.compare(date2)).rawValue
+            if asc == 0 {
+                if res == 1 {
+                    return true
+                } else {
+                    return false
+                }
+            } else {
+                if res == 1 {
+                    return false
+                } else {
+                    return true
                 }
             }
-        }
-        return isDeleted
+        })
+        return sorted
     }
+    
+    //MARK: - Constraintrs
     
     func indicatorConstraints() {
         activityIndicator.centerXAnchor.constraint(equalTo: tableView.safeAreaLayoutGuide.centerXAnchor).isActive = true

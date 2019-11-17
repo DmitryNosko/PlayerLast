@@ -11,7 +11,16 @@ import Photos
 
 class UserPodcastsViewController: UITableViewController {
 
-    let VIDEO_CELL_IDENTIFIER: String = "Cell"
+    private struct Constants {
+        static let kUserCellIdentifier = "Cell"
+        static let kInfoLabelText = "Custom podcasts doesn't exist, click to CAMERA to add new."
+        static let kMediaTypeCustom = "customType"
+        static let kCreationDate = "creationDate"
+        static let kPlayVideoIdentifier = "playVideoFromCameraRoll"
+        static let kLoadedTimeRanges = "currentItem.loadedTimeRanges"
+        static let kEmptyString = ""
+    }
+    
     let coreDataManager = CoreDataManager()
     private var displayedCustomItems: [PodcastItem]?
     var podcasts = [PHAsset]()
@@ -22,7 +31,7 @@ class UserPodcastsViewController: UITableViewController {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.backgroundColor = UIColor.clear
         label.textAlignment = .center
-        label.text = "Custom podcasts doesn't exist, click to CAMERA to add new."
+        label.text = Constants.kInfoLabelText
         label.font = UIFont.boldSystemFont(ofSize: 19)
         label.isHidden = true
         return label
@@ -32,25 +41,23 @@ class UserPodcastsViewController: UITableViewController {
         super.viewDidLoad()
         setUpTableView()
         setUpInfoLabelConstraints()
-        displayedCustomItems = coreDataManager.fetchItemsBy(predicate: NSPredicate(format: "itemMediaType = %@", "customType"))
+        displayedCustomItems = coreDataManager.fetchItemsBy(predicate: NSPredicate(format: "itemMediaType = %@", Constants.kMediaTypeCustom))
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        displayedCustomItems = coreDataManager.fetchItemsBy(predicate: NSPredicate(format: "itemMediaType = %@", "customType"))
-        if let items = displayedCustomItems, items.count == 0 {
-            tableView.separatorStyle = .none
-            infoLabel.isHidden = false
-        } else {
-            infoLabel.isHidden = true
-        }
+        configurateVK()
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        getAssetFromPhoto()
+        podcasts = AssetsService.customAssets()
+        //libo
+        //podcasts.append(contentsOf: customAssets())
         self.tableView.reloadData()
     }
+    
+    //MARK: TableViewDataSource
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         guard let videoItems = displayedCustomItems else {
@@ -60,76 +67,16 @@ class UserPodcastsViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: VIDEO_CELL_IDENTIFIER, for: indexPath) as! CustomPodcastTableViewCell
-        
+        let cell = tableView.dequeueReusableCell(withIdentifier: Constants.kUserCellIdentifier, for: indexPath) as! CustomPodcastTableViewCell
         let item = displayedCustomItems![indexPath.row]
+        let allPodcasts = AssetsService.allAssets()
         cell.videoTitleLabel.text = item.itemTitle
         cell.videoDescriptionLabel.text = item.itemDescription
-        
-        let options = PHFetchOptions()
-        var allPodcasts = [PHAsset]()
-        
-        options.sortDescriptors = [ NSSortDescriptor(key: "creationDate", ascending: false) ]
-        options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.video.rawValue)
-        let photos = PHAsset.fetchAssets(with: options)
-        photos.enumerateObjects { (asset, idx, stop) in
-            allPodcasts.append(asset)
-        }
-        
-        for asset in allPodcasts {
-
-            if asset.mediaType == PHAssetMediaType.video {
-                PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { (avAsset, audioMix, info) in
-                    let asset2 = avAsset as? AVURLAsset
-                    
-                    if asset2?.url.absoluteString == item.itemURL {
-                        let width: CGFloat = 500
-                        let height: CGFloat = 500
-                        let size = CGSize(width:width, height:height)
-                        
-                        PHImageManager.default().requestImage(for: asset, targetSize: size, contentMode: PHImageContentMode.aspectFill, options: nil) { (image, userInfo) -> Void in
-                            DispatchQueue.main.async {
-                                cell.videoImageView.image = image
-                            }
-                        }
-                    }
-                }
-            }
-            
-        }
-        
+        cell.videoImageView.image = AssetsService.assetImage(url: item.itemImage, assets: allPodcasts)
         return cell
     }
-
-    var chousenAsset: PHAsset?
     
-    func findAssetByURL(url: String) {
-        let options = PHFetchOptions()
-        var allPodcasts = [PHAsset]()
-
-        options.sortDescriptors = [ NSSortDescriptor(key: "creationDate", ascending: false) ]
-        options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.video.rawValue)
-        let photos = PHAsset.fetchAssets(with: options)
-        photos.enumerateObjects { (asset, idx, stop) in
-            allPodcasts.append(asset)
-        }
-        
-        for asset in allPodcasts {
-            guard(asset.mediaType == PHAssetMediaType.video)
-                else {
-                    print("Not a valid video media type")
-                    return
-            }
-            
-            PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { (avAsset, audioMix, info) in
-                let asset2 = avAsset as? AVURLAsset
-                
-                if asset2?.url.absoluteString == url {
-                    self.chousenAsset = asset
-                }
-            }
-        }
-    }
+    //MARK: TableViewDelegate
     
     override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         return true
@@ -139,43 +86,11 @@ class UserPodcastsViewController: UITableViewController {
         if editingStyle == .delete {
             let itemToDelete = displayedCustomItems?[indexPath.row]
             coreDataManager.deleteItem(item: itemToDelete!)
-            
-            // delte video
-            
-            let options = PHFetchOptions()
-            var allPodcasts = [PHAsset]()
-            
-            options.sortDescriptors = [ NSSortDescriptor(key: "creationDate", ascending: false) ]
-            options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.video.rawValue)
-            let photos = PHAsset.fetchAssets(with: options)
-            photos.enumerateObjects { (asset, idx, stop) in
-                allPodcasts.append(asset)
-            }
-            
-            for asset in allPodcasts {
-                if asset.mediaType == PHAssetMediaType.video {
-                    PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { (avAsset, audioMix, info) in
-                        let asset2 = avAsset as? AVURLAsset
-                        
-                        if asset2?.url.absoluteString == itemToDelete?.itemURL {
-                            PHPhotoLibrary.shared().performChanges({
-                                PHAssetChangeRequest.deleteAssets([asset] as NSFastEnumeration)
-                            }) { (boo, error) in
-                                DispatchQueue.main.async {
-                                    self.tableView.reloadData()
-                                }
-                                print(error as Any)
-                            }
-                        }
-                    }
-                }
-            }
-            
-            //delete video
-            
+            let allPodcasts = AssetsService.allAssets()
+            AssetsService.deleteAsset(url: itemToDelete!.itemURL, assets: allPodcasts)
             displayedCustomItems?.remove(at: indexPath.row)
             tableView.deleteRows(at: [indexPath], with: .left)
-            tableView.reloadData()
+            tableView.reloadSections(IndexSet(integer: 0), with: .left)
             if let items = displayedCustomItems, items.count == 0 {
                 tableView.separatorStyle = .none
                 infoLabel.isHidden = false
@@ -184,13 +99,13 @@ class UserPodcastsViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        performSegue(withIdentifier: "playVideoFromCameraRoll", sender: self)
+        performSegue(withIdentifier: Constants.kPlayVideoIdentifier, sender: self)
     }
     
-    //MARK: - Segues
+    //MARK: - Navigation
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        if segue.identifier == "playVideoFromCameraRoll" {
+        if segue.identifier == Constants.kPlayVideoIdentifier {
             let destinationVC: CaptureVideoViewController = segue.destination as! CaptureVideoViewController
             if let indexPath = self.tableView.indexPathForSelectedRow {
                 let item = displayedCustomItems![indexPath.row]
@@ -199,56 +114,128 @@ class UserPodcastsViewController: UITableViewController {
         }
     }
     
-    //MARK: - Photos
-    
-    
-    
-    func getAssetFromPhoto() {
+    //MARK: - Assets
 
-        let options = PHFetchOptions()
-        var allPodcasts = [PHAsset]()
-        let customItemsURLS = coreDataManager.customItemsURlS()
-        
-        for item in customItemsURLS {
-            print("i'm customItemURl = \(item)")
-        }
-        
-        options.sortDescriptors = [ NSSortDescriptor(key: "creationDate", ascending: false) ]
-        options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.video.rawValue)
-        let photos = PHAsset.fetchAssets(with: options)
-        photos.enumerateObjects { (asset, idx, stop) in
-            allPodcasts.append(asset)
-        }
-
-        for asset in allPodcasts {
-            guard(asset.mediaType == PHAssetMediaType.video)
-                else {
-                    print("Not a valid video media type")
-                    return
-            }
-
-            PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { (avAsset, audioMix, info) in
-                let asset2 = avAsset as? AVURLAsset
-                for ciu in customItemsURLS {
-                    if ciu == asset2?.url.absoluteString {
-                        self.podcasts.append(asset)
-                        DispatchQueue.main.async {
-                            self.tableView.reloadData()
-                        }
-                    }
-                }
-
-            }
-        }
-    }
+//    var chousenAsset: PHAsset?
+//    
+//    func allAssets() -> [PHAsset] {
+//        let options = PHFetchOptions()
+//        var podcasts = [PHAsset]()
+//        options.sortDescriptors = [ NSSortDescriptor(key: Constants.kCreationDate, ascending: false) ]
+//        options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.video.rawValue)
+//        let photos = PHAsset.fetchAssets(with: options)
+//        photos.enumerateObjects { (asset, idx, stop) in
+//            podcasts.append(asset)
+//        }
+//        return podcasts
+//    }
+//    
+//    func asset(url: String) {
+//        let allPodcasts = allAssets()
+//        
+//        for asset in allPodcasts {
+//            guard(asset.mediaType == PHAssetMediaType.video)
+//                else {
+//                    return
+//            }
+//            PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { (avAsset, audioMix, info) in
+//                let asset2 = avAsset as? AVURLAsset
+//                if asset2?.url.absoluteString == url {
+//                    self.chousenAsset = asset
+//                }
+//            }
+//        }
+//    }
+//    
+//    func assetImage(url: String, assets: [PHAsset]) -> UIImage {
+//        var imageToReturn: UIImage?
+//        for asset in assets {
+//            if asset.mediaType == PHAssetMediaType.video {
+//                PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { (avAsset, audioMix, info) in
+//                    let asset2 = avAsset as? AVURLAsset
+//                    
+//                    if asset2?.url.absoluteString == url {
+//                        let width: CGFloat = 500
+//                        let height: CGFloat = 500
+//                        let size = CGSize(width:width, height:height)
+//                        
+//                        PHImageManager.default().requestImage(for: asset, targetSize: size, contentMode: PHImageContentMode.aspectFill, options: nil) { (image, userInfo) -> Void in
+//                            DispatchQueue.main.async {
+//                                imageToReturn = image
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        
+//        return imageToReturn!
+//    }
+//    
+//    func deleteAsset(url: String, assets: [PHAsset]) {
+//        for asset in assets {
+//            if asset.mediaType == PHAssetMediaType.video {
+//                PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { (avAsset, audioMix, info) in
+//                    let asset2 = avAsset as? AVURLAsset
+//                    
+//                    if asset2?.url.absoluteString == url {
+//                        PHPhotoLibrary.shared().performChanges({
+//                            PHAssetChangeRequest.deleteAssets([asset] as NSFastEnumeration)
+//                        }) { (boo, error) in
+//                            DispatchQueue.main.async {
+//                                self.tableView.reloadSections(IndexSet(integer: 0), with: .left)
+//                            }
+//                            print(error as Any)
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
+//    
+//    func customAssets() -> [PHAsset] {
+//        var assetsToReturn = [PHAsset]()
+//        let customItemsURLS = coreDataManager.customItemsURlS()
+//        
+//        let allPodcasts = allAssets()
+//        for asset in allPodcasts {
+//            if asset.mediaType == PHAssetMediaType.video {
+//                PHCachingImageManager().requestAVAsset(forVideo: asset, options: nil) { (avAsset, audioMix, info) in
+//                    let asset2 = avAsset as? AVURLAsset
+//                    for ciu in customItemsURLS {
+//                        if ciu == asset2?.url.absoluteString {
+//                            assetsToReturn.append(asset)
+//                            DispatchQueue.main.async {
+//                                self.tableView.reloadData()
+//                            }
+//                        }
+//                    }
+//                    
+//                }
+//            }
+//        }
+//        return assetsToReturn
+//    }
 
     //MARK: - SetUp's
     
+    func configurateVK() {
+        displayedCustomItems = coreDataManager.fetchItemsBy(predicate: NSPredicate(format: "itemMediaType = %@", Constants.kMediaTypeCustom))
+        if let items = displayedCustomItems, items.count == 0 {
+            tableView.separatorStyle = .none
+            infoLabel.isHidden = false
+        } else {
+            infoLabel.isHidden = true
+        }
+    }
+    
     func setUpTableView() {
         self.tableView.addSubview(infoLabel)
-        self.tableView.register(CustomPodcastTableViewCell.self, forCellReuseIdentifier: VIDEO_CELL_IDENTIFIER)
+        self.tableView.register(CustomPodcastTableViewCell.self, forCellReuseIdentifier: Constants.kUserCellIdentifier)
         self.tableView.estimatedRowHeight = 200
     }
+    
+    //MARK: - Constraints
     
     func setUpInfoLabelConstraints() {
         infoLabel.centerXAnchor.constraint(equalTo: tableView.safeAreaLayoutGuide.centerXAnchor).isActive = true
