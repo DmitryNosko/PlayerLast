@@ -13,6 +13,9 @@ class AssetsService {
     
     private struct Constants {
         static let kCreationDate = "creationDate"
+        static let kErrorMessage = "error to load video"
+        static let kEmptyString = ""
+        static let kFileExistMessage = "File already exists at destination url"
     }
     
     private static let coreDataManager = CoreDataManager()
@@ -110,6 +113,34 @@ class AssetsService {
             }
         }
         return assetsToReturn
+    }
+    
+    static func addAsset(destinationURL: URL, title: String, description: String, customItemID: UUID) {
+        PHPhotoLibrary.requestAuthorization({ (authorizationStatus: PHAuthorizationStatus) -> Void in
+            if authorizationStatus == .authorized {
+                PHPhotoLibrary.shared().performChanges({
+                    PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: destinationURL)}) { completed, error in
+                        if completed {
+                            
+                            let asset = AssetsService.allAssets().first
+                            
+                            if asset!.mediaType == PHAssetMediaType.video {
+                                PHCachingImageManager().requestAVAsset(forVideo: asset!, options: nil) { (avAsset, audioMix, info) in
+                                    let asset = avAsset as!AVURLAsset
+                                    
+                                    let mediaType = MediaType(rawValue: MediaType.customType.rawValue)
+                                    let progressStatus = ProgressStatus(rawValue: ProgressStatus.new.rawValue)
+                                    
+                                    let itemToSave = PodcastItem(identifier: customItemID, itemTitle: title, itemDescription: description, itemPubDate: Constants.kEmptyString, itemDuration: Constants.kEmptyString, itemURL: asset.url.absoluteString, itemImage: Constants.kEmptyString, itemAuthor: Constants.kEmptyString, itemIsDownloaded: false, itemIsDeleted: false, itemMediaType: mediaType!, itemProgressStatus: progressStatus!)
+                                    self.coreDataManager.addItem(item: itemToSave)
+                                }
+                            }
+                        } else {
+                            print(Constants.kErrorMessage)
+                        }
+                }
+            }
+        })
     }
     
 }

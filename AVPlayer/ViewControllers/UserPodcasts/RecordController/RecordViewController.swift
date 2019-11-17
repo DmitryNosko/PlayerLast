@@ -11,6 +11,11 @@ import AVFoundation
 import AVKit
 
 class RecordViewController: UIViewController, AVCaptureFileOutputRecordingDelegate {
+    
+    private struct Constants {
+        static let kPlayVideoIdentifier = "playVideo"
+        static let kErrorToAddCameraInput = "Can't add input to camera"
+    }
 
     @IBOutlet weak var recordButton: UIButton!
     
@@ -35,18 +40,7 @@ class RecordViewController: UIViewController, AVCaptureFileOutputRecordingDelega
         setupPreviewLayer()
         startRunningCaptureSession()
         recordButton.layer.cornerRadius = recordButton.frame.width / 2
-        
-        toggleCameraGestureRecognizer.direction = .up
-        toggleCameraGestureRecognizer.addTarget(self, action: #selector(self.switchCamera))
-        view.addGestureRecognizer(toggleCameraGestureRecognizer)
-        
-        zoomInGestureRecognizer.direction = .right
-        zoomInGestureRecognizer.addTarget(self, action: #selector(zoomIn))
-        view.addGestureRecognizer(zoomInGestureRecognizer)
-        
-        zoomOutGestureRecognizer.direction = .left
-        zoomOutGestureRecognizer.addTarget(self, action: #selector(zoomOut))
-        view.addGestureRecognizer(zoomOutGestureRecognizer)
+        configurateGestures()
     }
     
     func setupSessions() {
@@ -79,7 +73,7 @@ class RecordViewController: UIViewController, AVCaptureFileOutputRecordingDelega
             if captureSession.canAddInput(audioDeviceInput) {
                 captureSession.addInput(audioDeviceInput)
             } else {
-                print("cant add audio input")
+                print(Constants.kErrorToAddCameraInput)
             }
         } catch {
             print(error)
@@ -137,21 +131,30 @@ class RecordViewController: UIViewController, AVCaptureFileOutputRecordingDelega
     
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         if error != nil {
-            print("error fileOutput")
             return
         }
-        performSegue(withIdentifier: "playVideo", sender: outputFileURL)
+        performSegue(withIdentifier: Constants.kPlayVideoIdentifier, sender: outputFileURL)
     }
+    
+    //MARK: Navigation
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == Constants.kPlayVideoIdentifier {
+            let destinationVC: CaptureVideoViewController = segue.destination as! CaptureVideoViewController
+            let videoFileURL = sender as! URL
+            destinationVC.videoURL = videoFileURL.absoluteString
+            destinationVC.customPodcastItem = customPodcastItem
+        }
+    }
+    
+    //MARK: Gestures
     
     @objc func switchCamera() {
         captureSession.beginConfiguration()
-        // Change the device based on the current camera
         let newDevice = (currentDevice?.position == AVCaptureDevice.Position.back) ? frontCamera : backCamera
-        // Remove all inputs from the session
         for input in captureSession.inputs {
             captureSession.removeInput(input as! AVCaptureDeviceInput)
         }
-        // Change to the new input
         let cameraInput:AVCaptureDeviceInput
         do {
             cameraInput = try AVCaptureDeviceInput(device: newDevice!)
@@ -198,13 +201,17 @@ class RecordViewController: UIViewController, AVCaptureFileOutputRecordingDelega
         }
     }
     
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        if segue.identifier == "playVideo" {
-            let destinationVC: CaptureVideoViewController = segue.destination as! CaptureVideoViewController
-            let videoFileURL = sender as! URL
-            destinationVC.videoURL = videoFileURL.absoluteString
-            destinationVC.customPodcastItem = customPodcastItem
-            print("")
-        }
+    func configurateGestures() {
+        toggleCameraGestureRecognizer.direction = .up
+        toggleCameraGestureRecognizer.addTarget(self, action: #selector(self.switchCamera))
+        view.addGestureRecognizer(toggleCameraGestureRecognizer)
+        
+        zoomInGestureRecognizer.direction = .right
+        zoomInGestureRecognizer.addTarget(self, action: #selector(zoomIn))
+        view.addGestureRecognizer(zoomInGestureRecognizer)
+        
+        zoomOutGestureRecognizer.direction = .left
+        zoomOutGestureRecognizer.addTarget(self, action: #selector(zoomOut))
+        view.addGestureRecognizer(zoomOutGestureRecognizer)
     }
 }

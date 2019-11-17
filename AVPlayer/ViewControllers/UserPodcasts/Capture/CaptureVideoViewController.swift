@@ -11,12 +11,28 @@ import AVFoundation
 import Photos
 
 class CaptureVideoViewController: UIViewController {
-
+    
+    private struct Constants {
+        static let kEmptyString = ""
+        static let kPauseImage = "pause"
+        static let kDefaultLenghtValue = "00:00"
+        static let kVolumeImage = "volume"
+        static let kCancelImage = "cancel"
+        static let kPlayImage = "play"
+        static let kLoadedTimeRanges = "currentItem.loadedTimeRanges"
+        static let kSaveBlackImage = "saveBLACK"
+        static let kAlertTitle = "Create podcast"
+        static let kAlertMessage = "Be sure to fill out all fields"
+        static let kAddTitleTF = "Add title"
+        static let kAddDescriptionTF = "Add description"
+        static let kTFCloseButton = "Close"
+        static let kTFSaveButton = "Save"
+    }
     
     @IBOutlet weak var videoView: UIView!
     var player: AVPlayer!
     var playerLayer: AVPlayerLayer!
-    var videoURL: String = ""
+    var videoURL: String = Constants.kEmptyString
     let coreDataManager = CoreDataManager()
     var customPodcastItem: PodcastItem?
     
@@ -29,7 +45,7 @@ class CaptureVideoViewController: UIViewController {
     
     let pausePlayButton: UIButton = {
         let button = UIButton(type: .system)
-        let image = UIImage(named: "pause")
+        let image = UIImage(named: Constants.kPauseImage)
         button.setImage(image, for: .normal)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tintColor = UIColor.white
@@ -40,7 +56,7 @@ class CaptureVideoViewController: UIViewController {
     
     let videoLenghtLable: UILabel = {
         let label = UILabel()
-        label.text = "00:00"
+        label.text = Constants.kDefaultLenghtValue
         label.textColor = UIColor.white
         label.font = UIFont.boldSystemFont(ofSize: 13)
         label.textAlignment = NSTextAlignment.right
@@ -50,7 +66,7 @@ class CaptureVideoViewController: UIViewController {
     
     let currentTimeLable: UILabel = {
         let label = UILabel()
-        label.text = "00:00"
+        label.text = Constants.kDefaultLenghtValue
         label.textColor = UIColor.white
         label.font = UIFont.boldSystemFont(ofSize: 13)
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -68,7 +84,7 @@ class CaptureVideoViewController: UIViewController {
     
     let cancelVideoButton: UIButton = {
         let button = UIButton(type: .system)
-        let image = UIImage(named: "cancel")
+        let image = UIImage(named: Constants.kCancelImage)
         button.setImage(image, for: .normal)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tintColor = UIColor.white
@@ -78,7 +94,7 @@ class CaptureVideoViewController: UIViewController {
     
     let saveVideoButton: UIButton = {
         let button = UIButton(type: .system)
-        let image = UIImage(named: "saveBLACK")
+        let image = UIImage(named: Constants.kSaveBlackImage)
         button.setImage(image, for: .normal)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tintColor = UIColor.white
@@ -86,13 +102,10 @@ class CaptureVideoViewController: UIViewController {
         return button
     }()
     
-    //MARK: - VCLifeCycle methods
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         setUpPlayerView(url: videoURL)
-        controlsContainerView.frame = self.view.bounds
-        self.view.addSubview(controlsContainerView)
         configerateControlsContainerView()
         startPlaying()
     }
@@ -104,16 +117,17 @@ class CaptureVideoViewController: UIViewController {
         }
     }
     
-    //MARK: - Selectors
+    //MARK: - Player actions
+    
     var isPlaying = false
     
     @objc func handlePause() {
         if isPlaying {
             player?.pause()
-            pausePlayButton.setImage(UIImage(named: "play"), for: .normal)
+            pausePlayButton.setImage(UIImage(named: Constants.kPlayImage), for: .normal)
         } else {
             player?.play()
-            pausePlayButton.setImage(UIImage(named: "pause"), for: .normal)
+            pausePlayButton.setImage(UIImage(named: Constants.kPauseImage), for: .normal)
         }
         isPlaying = !isPlaying
     }
@@ -131,95 +145,36 @@ class CaptureVideoViewController: UIViewController {
     }
     
     @objc func handleSave() {
-        let alert = UIAlertController(title: "Create podcast", message: "Fill all fields", preferredStyle: .alert)
+        let alert = UIAlertController(title: Constants.kAddTitleTF, message: Constants.kAlertMessage, preferredStyle: .alert)
         
         alert.addTextField { (textField) in
-            textField.placeholder = "Add title"
+            textField.placeholder = Constants.kAddTitleTF
         }
         alert.addTextField { (textField) in
-            textField.placeholder = "Add Description"
+            textField.placeholder = Constants.kAddDescriptionTF
         }
         
-        alert.addAction(UIAlertAction(title: "Close", style: .cancel, handler: { (al) in
+        alert.addAction(UIAlertAction(title: Constants.kTFCloseButton, style: .cancel, handler: { (al) in
             self.dismiss(animated: true) {
             }
         }))
         
-        alert.addAction(UIAlertAction(title: "Save", style: .default, handler: { (al) in
+        alert.addAction(UIAlertAction(title: Constants.kTFSaveButton, style: .default, handler: { (al) in
             
             let textFields = alert.textFields
             let titleTF = textFields?.first
             let descriptionTF = textFields?.last
             
-            if titleTF?.text != "" && descriptionTF?.text != "" {
+            if titleTF?.text != Constants.kEmptyString && descriptionTF?.text != Constants.kEmptyString {
                 let title = titleTF?.text
                 let desct = descriptionTF?.text
-                self.downloadVideoLinkAndCreateAsset(self.videoURL, title: title!, description: desct!)
+                DownloadManager.downloadVideoAndCreateAsset(videoLink: self.videoURL, title: title!, description: desct!, customItemID: self.customPodcastItem!.identifier)
             }
         }))
         
         present(alert, animated: true, completion: nil)
     }
     
-    func downloadVideoLinkAndCreateAsset(_ videoLink: String, title: String, description: String) {
-        guard let videoURL = URL(string: videoLink) else { return }
-        print("videoURL to download = \(videoURL)")
-        guard let documentsDirectoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
-        if !FileManager.default.fileExists(atPath: documentsDirectoryURL.appendingPathComponent(videoURL.lastPathComponent).path) {
-            URLSession.shared.downloadTask(with: videoURL) {
-                (location, response, error) -> Void in
-                guard let location = location else { return }
-                let destinationURL = documentsDirectoryURL.appendingPathComponent(response?.suggestedFilename ?? videoURL.lastPathComponent)
-                do {
-                    try FileManager.default.moveItem(at: location, to: destinationURL)
-                    PHPhotoLibrary.requestAuthorization({ (authorizationStatus: PHAuthorizationStatus) -> Void in
-                        if authorizationStatus == .authorized {
-                            PHPhotoLibrary.shared().performChanges({
-                                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: destinationURL)}) { completed, error in
-                                    if completed {
-                                        print("Video asset created")
-                                        let options = PHFetchOptions()
-                                        var allPodcasts = [PHAsset]()
-                                        
-                                        options.sortDescriptors = [ NSSortDescriptor(key: "creationDate", ascending: false) ]
-                                        options.predicate = NSPredicate(format: "mediaType = %d", PHAssetMediaType.video.rawValue)
-                                        let photos = PHAsset.fetchAssets(with: options)
-                                        photos.enumerateObjects { (asset, idx, stop) in
-                                            allPodcasts.append(asset)
-                                        }
-                                        
-                                        let asset = allPodcasts.first
-                                        guard(asset!.mediaType == PHAssetMediaType.video)
-                                            else {
-                                                print("Not a valid video media type")
-                                                return
-                                        }
-                                        
-                                        PHCachingImageManager().requestAVAsset(forVideo: asset!, options: nil) { (avAsset, audioMix, info) in
-                                            let asset = avAsset as!AVURLAsset
-                                            print("captured assets url created = \(asset.url.absoluteString)")
-                                            
-                                            let mediaType = MediaType(rawValue: MediaType.customType.rawValue)
-                                            let progressStatus = ProgressStatus(rawValue: ProgressStatus.new.rawValue)
-                                            
-                                            let itemToSave = PodcastItem(identifier: self.customPodcastItem!.identifier, itemTitle: title, itemDescription: description, itemPubDate: "", itemDuration: "", itemURL: asset.url.absoluteString, itemImage: "", itemAuthor: "", itemIsDownloaded: false, itemIsDeleted: false, itemMediaType: mediaType!, itemProgressStatus: progressStatus!)
-                                            self.coreDataManager.addItem(item: itemToSave)
-                                            self.dismiss(animated: true) {
-                                            }
-                                        }
-                                    } else {
-                                        print("error to load video")
-                                    }
-                            }
-                        }
-                    })
-                } catch { print(error) }
-                }.resume()
-        } else {
-            print("File already exists at destination url")
-        }
-        
-    }
     
     @objc func handleCancel() {
         player.pause()
@@ -231,7 +186,7 @@ class CaptureVideoViewController: UIViewController {
     
     func startPlaying() {
         player.play()
-        player?.addObserver(self, forKeyPath: "currentItem.loadedTimeRanges", options: .new, context: nil)
+        player?.addObserver(self, forKeyPath: Constants.kLoadedTimeRanges, options: .new, context: nil)
         
         let interval = CMTime(value: 1, timescale: 2)
         player?.addPeriodicTimeObserver(forInterval: interval, queue: DispatchQueue.main, using: { (progressTime) in
@@ -251,7 +206,7 @@ class CaptureVideoViewController: UIViewController {
     var counter = 0
     
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == "currentItem.loadedTimeRanges" {
+        if keyPath == Constants.kLoadedTimeRanges {
             controlsContainerView.backgroundColor = UIColor.clear
             
             if counter == 0 {
@@ -276,6 +231,9 @@ class CaptureVideoViewController: UIViewController {
     //MARK: - PlayerConfig
     
     func configerateControlsContainerView() {
+        controlsContainerView.frame = self.view.bounds
+        self.view.addSubview(controlsContainerView)
+        
         controlsContainerView.addSubview(pausePlayButton)
         controlsContainerView.addSubview(videoLenghtLable)
         controlsContainerView.addSubview(videoSlider)
@@ -301,6 +259,7 @@ class CaptureVideoViewController: UIViewController {
     }
     
     //MARK: - touches
+    
     var timer: Timer?
     
     func startTimer() {
@@ -316,34 +275,26 @@ class CaptureVideoViewController: UIViewController {
     }
     
     @objc func hideAllButtons() {
-        pausePlayButton.isHidden = true
-        videoSlider.isHidden = true
-        currentTimeLable.isHidden = true
-        videoLenghtLable.isHidden = true
-        cancelVideoButton.isHidden = true
-        saveVideoButton.isHidden = true
+        setUpControls(isHidden: true)
         stop()
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        
-        print("BeganTouch")
         if pausePlayButton.isHidden == true {
-            pausePlayButton.isHidden = false
-            videoSlider.isHidden = false
-            currentTimeLable.isHidden = false
-            videoLenghtLable.isHidden = false
-            cancelVideoButton.isHidden = false
-            saveVideoButton.isHidden = false
+            setUpControls(isHidden: false)
             startTimer()
         } else {
-            pausePlayButton.isHidden = true
-            videoSlider.isHidden = true
-            currentTimeLable.isHidden = true
-            videoLenghtLable.isHidden = true
-            cancelVideoButton.isHidden = true
-            saveVideoButton.isHidden = true
+            setUpControls(isHidden: true)
         }
+    }
+    
+    func setUpControls(isHidden: Bool) {
+        pausePlayButton.isHidden = isHidden
+        videoSlider.isHidden = isHidden
+        currentTimeLable.isHidden = isHidden
+        videoLenghtLable.isHidden = isHidden
+        cancelVideoButton.isHidden = isHidden
+        saveVideoButton.isHidden = isHidden
     }
     
     //MARK: Constraints
